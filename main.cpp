@@ -187,7 +187,7 @@ void gameOver() {
     SDL_Color C = {0, 0, 0};
 
     char scoreText[20];
-    sprintf(scoreText, "GAME OVER!");
+    sprintf(scoreText, "GAME OVER!!!");
 
     SDL_Surface* surface = TTF_RenderText_Solid(font, scoreText, C);
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
