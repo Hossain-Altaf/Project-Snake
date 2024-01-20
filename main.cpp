@@ -13,20 +13,27 @@ using namespace std;
 bool isRunning = true;
 bool pause;
 int score;
-int count;
+//int bcount=0;
 int ls = -1;
+int bonusTime;
+bool fl=true;
 
 typedef struct Snake {
     vector<pair<int, int>> snakebody;
     char direction;
+     Uint32 bonusFoodStartTime;
 } Snake;
 Snake snake;
+
 pair<int, int> food;
 pair<int, int> bonusfood;
 SDL_Window* window;
 SDL_Renderer* renderer;
 SDL_Event e;
 Mix_Chunk* wavFile;
+Mix_Chunk* bonusSound;
+//Mix_Chunk* bonusVanish;
+Mix_Chunk* tata;
 
 void foodpos()
 {
@@ -39,10 +46,20 @@ void bonusfoodpos()
     bonusfood.first = rand() % (W / GRID) * GRID;
     bonusfood.second = rand() % (H / GRID) * GRID;
 
+    snake.bonusFoodStartTime = SDL_GetTicks();
+
+    //bonusTime=SDL_GetTicks();
+   //bcount=0;
+
 }
 
 void initialize()
 {
+
+   /* bonusfood.first = -100;
+    bonusfood.second = -100;
+    */
+
     SDL_Init(SDL_INIT_EVERYTHING);
     TTF_Init();
 
@@ -53,12 +70,20 @@ void initialize()
     //rectenglex += 10;
     foodpos();
     score = 0;
+    //bcount=0;
+
+     //ls = -1;
+
     SDL_CreateWindowAndRenderer(W, H, 0, &window, &renderer);
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024);
-    wavFile = Mix_LoadWAV("gunshot.wav");
+    wavFile = Mix_LoadWAV("eatSound.wav");
     Mix_Music* BM = Mix_LoadMUS("GOT.mp3");
     Mix_PlayMusic(BM, -1);
-    
+    //Mix_Music* bonusM = Mix_LoadMUS("wow.mp3")
+
+    bonusSound=Mix_LoadWAV("wow.mp3");
+    tata = Mix_LoadWAV("khatam.mp3");
+    //bonusVanish=Mix_LoadWAV("aayein.mp3");
 }
 
 void processInput()
@@ -162,6 +187,7 @@ bool isCollision()
         snake.snakebody.front().second >= (60) && snake.snakebody.front().second < (60+3*GRID))))
 
         {
+            Mix_PlayChannel(-1, tata, 0);
             return true;
         }
     return false;
@@ -169,6 +195,28 @@ bool isCollision()
 
 void update()
 {
+
+    
+    Uint32 currentTime = SDL_GetTicks(); //used to retrieve the current number of milliseconds that have passed since the SDL library was initialized.
+    Uint32 bonusFoodElapsedTime = currentTime - snake.bonusFoodStartTime;
+
+    if (bonusFoodElapsedTime >= 10000) {
+        // Bonus food has been on the screen for more than 10 seconds
+        
+        //Mix_PlayChannel(-1, bonusVanish, 0);
+
+        bonusfood.first = 2000;
+        bonusfood.second = 3200;
+    }
+
+    /* int ctime = SDL_GetTicks();
+    if ((ctime-bonusTime >= 6000))
+    {
+        fl=false;
+        food.first = -100;
+        food.second = -100;
+    }*/
+
     pair<int,int> newH = snake.snakebody.front();
     if (snake.direction == 'R'){
         if (newH.first < W)
@@ -194,12 +242,14 @@ void update()
         else
             newH.second = H-GRID;
     }
+
     snake.snakebody.insert(snake.snakebody.begin(), newH);
 
     if (score%7==0 && score!=ls)
     {
         ls = score;
         bonusfoodpos();
+
         while ((bonusfood.first >= 60 && bonusfood.first < 60+3*GRID &&
         bonusfood.second >= 60 && bonusfood.second < 60+8*GRID) ||
 
@@ -235,10 +285,20 @@ void update()
         }
 
     }
+
+    /*if(bcount==7)
+    {
+        bonusfoodpos();
+    }*/
+
     if (isCollision()) isRunning = false;
+    
+    //when snake collide with food
     else if (newH.first == food.first && newH.second == food.second){
+
         Mix_PlayChannel(-1, wavFile, 0);
         foodpos();
+
         while ((food.first >= 60 && food.first < 60+3*GRID &&
         food.second >= 60 && food.second < 60+8*GRID) ||
 
@@ -274,16 +334,21 @@ void update()
         }
 
         score++;
+
+        //increse snake size
         if (snake.direction == 'R') newH.first += GRID;
         else if (snake.direction == 'D') newH.second += GRID;
         if (snake.direction == 'L') newH.first -= GRID;
         else if (snake.direction == 'U') newH.second -= GRID;
+
         snake.snakebody.insert(snake.snakebody.begin(), newH);
         snake.snakebody.pop_back();
     }
+
+    //snake collide with bonusfood
     else if (newH.first == bonusfood.first && newH.second == bonusfood.second){
-        Mix_PlayChannel(-1, wavFile, 0);
-        score+=8;
+        Mix_PlayChannel(-1, bonusSound, 0);
+        score+=10;
         bonusfood.first = 2000;
         bonusfood.second = 3200;
     }
@@ -365,7 +430,12 @@ void gameOver() {
     SDL_RenderPresent(renderer);
     cout << "GAME OVER" << endl;
 
+   /* Mix_Music* gameOverMusic = Mix_LoadMUS("khatam.mp3");
+    Mix_PlayMusic(gameOverMusic, 0);*/
+
+
     // Clean up
+    //Mix_FreeMusic(gameOverMusic);
     SDL_FreeSurface(surf);
     SDL_DestroyTexture(tex);
     SDL_FreeSurface(surface);
@@ -380,7 +450,7 @@ void render()
     SDL_RenderClear(renderer);
     showScore();
     
-    SDL_SetRenderDrawColor(renderer, 180, 202, 74, 255);
+    SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
     SDL_Rect obs = {60, 60, 3*GRID, 8*GRID};
     SDL_RenderFillRect(renderer, &obs);
     SDL_Rect obs1 = {60, 60, 8*GRID, 3*GRID};
@@ -442,10 +512,16 @@ int main (int argc, char* argv[])
         } else
             Mix_PauseMusic();
         render();
-        SDL_Delay(80);
+        SDL_Delay((100-(0.5*score)));
     }
 
     gameOver();
     SDL_Delay(1500);
     close();
 }
+
+// Altaf Hossain
+// dept: software engineering,sust
+// reg no: 2021831002
+// course name: making a 2D game using sdl 
+// course code: swe150
